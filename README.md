@@ -1,2 +1,4 @@
 # unity-reactive-var
-very small lib only for reactive variables
+small lib only for reactive variables
+
+Uses UniRx impletemntation, but more compact.
