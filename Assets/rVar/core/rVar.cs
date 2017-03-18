@@ -2,25 +2,40 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
+/// <summary>
+/// Base for working with generic collections. Typical c# hack
+/// </summary>
 [Serializable]
 public class rVar {
 }
+
+//Interface for communicating with uncasted class from other things
 public interface IrVar {
     object getValue();
     void setValue(object val);
 }
+
 [Serializable]
 public class rVar<T> : rVar, IrVar {
     [SerializeField]
     [HideInInspector]
     T value;
+    /// <summary>
+    /// The value is set AFTER the callback
+    /// </summary>
     public T Value
     {
         get { return value; }
         set {
-            evaluate(value);
-            OnChanged(value);
-            this.value = value;
+            T val = value;
+            if(OnPreEvaluate!=null)
+                val = OnPreEvaluate(value);
+            if(evaluate!=null)
+                evaluate(val);
+            this.value = val;
+            if(OnChanged!=null)
+                OnChanged(val);
         }
     }
     public rVar() {
@@ -28,34 +43,55 @@ public class rVar<T> : rVar, IrVar {
     public rVar(T initval) {
         Value = initval;
     }
-    public event Action<T> OnChanged = delegate { };
+    /// <summary>
+    /// Subscribe to receive the value before it is set so you can modify it (clamp for example or whatever)
+    /// return the modified value 
+    /// </summary>
+    public event Func<T, T> OnPreEvaluate;
+    /// <summary>
+    /// Subscribe to receive notification after the value was internally set.
+    /// </summary>
+    public event Action<T> OnChanged;
     //Used in child classes for raising specific conditional events.
-    protected Action<T> evaluate = delegate { };
+    protected event Action<T> evaluate;
     public override string ToString() {
         return value.ToString();
     }
+
     public object getValue() {
         return Value;
     }
+
     public void setValueDirectly(object val) {
         value = (T)val;
     }
+
     public void setValue(object val) {
         Value = (T)val;
     }
+
     public rVar<T> SetFromString(string value) {
         Value = ((T)System.Convert.ChangeType(value, typeof(T)));
         return this;
     }
+
     public rVar<T> Subscribe(Action<T> action) {
         OnChanged += action;
         return this;
     }
+
     public rVar<T> SubAndUpdate(Action<T> action) {
         OnChanged += action;
         Update();
         return this;
     }
+
+    public void RemoveAllListeners() {
+        OnChanged = null;
+        OnPreEvaluate = null;
+        evaluate = null;
+    }
+
     /// <summary>
     /// Connected var receives OnChanged events from the one it is connected to
     /// </summary>
@@ -64,12 +100,15 @@ public class rVar<T> : rVar, IrVar {
         to.OnChanged += connectedCall;
         value = to.Value;
     }
+
     public void Disconnect(rVar<T> from) {
         from.OnChanged -= connectedCall;
     }
+
     void connectedCall(T val) {
         Value = val;
     }
+
     /// <summary>
     /// Sets the value to itself raising OnChanged
     /// </summary>
@@ -78,6 +117,7 @@ public class rVar<T> : rVar, IrVar {
         return this;
     }
 }
+
 [Serializable]
 public class r_int : rVar<int> {
     public r_int() : base() { }
@@ -92,6 +132,7 @@ public class r_float : rVar<float> {
     public r_float(float initialValue) : base(initialValue) { }
     public static implicit operator float(r_float var) { return var.Value; }
 }
+
 [Serializable]
 public class r_string : rVar<string> {
     public r_string() : base() { }
@@ -99,6 +140,7 @@ public class r_string : rVar<string> {
     public static implicit operator string(r_string var) {
         return var.Value;
     }
+
 }
 [Serializable]
 public class r_double : rVar<double> {
@@ -114,14 +156,18 @@ public class r_bool : rVar<bool> {
     public r_bool(bool initialValue) : base(initialValue) {
         InitOnTrue();
     }
+
     void InitOnTrue() {
         evaluate += x => { if (x == true) OnTrue(); };
     }
+
+
     public static implicit operator bool(r_bool var) {
         return var.Value;
     }
     public event Action OnTrue = delegate { };
 }
+
 [Serializable]
 public class r_KeyCode : rVar<KeyCode> {
     public r_KeyCode() : base() { }
@@ -130,6 +176,7 @@ public class r_KeyCode : rVar<KeyCode> {
         return var.Value;
     }
 }
+
 [Serializable]
 public class r_Color : rVar<Color> {
     public r_Color() : base() { }
@@ -138,6 +185,7 @@ public class r_Color : rVar<Color> {
         return var.Value;
     }
 }
+
 [Serializable]
 public class r_Vector3 : rVar<Vector3> {
     public r_Vector3() : base() { }
@@ -178,3 +226,4 @@ public class r_uObject : rVar<UnityEngine.Object> {
         return var.Value;
     }
 }
+
