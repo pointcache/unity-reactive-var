@@ -17,6 +17,20 @@ A wrapper around any type that has several events
 * Serializeable by unity
 * Works in inspector, reacts to user input (meaning if you change value on runtime it raises events)
 
+# Usage
+
+```cs
+
+r_float Health = new r_float(100f);
+
+Health.OnPreEvaluate += (x) => Mathf.Clamp(x, 0f, maxHealth);
+Health.OnChanged += x => uiHealthText.text = x.ToString();
+Health.Value -= 50;
+
+float currentHealth = Health; //implicit
+
+```
+
 # Annoying part
 
 Due to unity way of handling generics we cant use rVar<T> for inspector and serialization.
